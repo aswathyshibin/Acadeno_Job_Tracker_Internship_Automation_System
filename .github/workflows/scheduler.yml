@@ -2,7 +2,7 @@ name: Kerala IT Park Job Scraper Automation
 
 on:
   schedule:
-    # Runs at 8 AM, 3 PM, and 9 PM IST (converted to UTC)
+    # Runs at 8 AM, 4 PM, and 9 PM IST (converted to UTC)
     - cron: '30 2,10,15 * * *'
   workflow_dispatch:  # allows manual trigger
 
@@ -33,3 +33,49 @@ jobs:
           name: Job_Report
           path: |
             *.docx
+
+      - name: Send report via email
+        env:
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: |
+          python - <<'EOF'
+          import os, smtplib
+          from email.mime.text import MIMEText
+          from email.mime.multipart import MIMEMultipart
+          from email.mime.base import MIMEBase
+          from email import encoders
+
+          sender = os.getenv("EMAIL_USER")
+          password = os.getenv("EMAIL_PASS")
+          recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
+
+          msg = MIMEMultipart()
+          msg['From'] = sender
+          msg['To'] = ", ".join(recipients)
+          msg['Subject'] = "Kerala IT Parks – Daily Job Report"
+          msg.attach(MIMEText("Attached is the latest Kerala IT Parks job listing report.", 'plain'))
+
+          attached = False
+          for f in os.listdir('.'):
+              if f.endswith('.docx'):
+                  with open(f, 'rb') as fp:
+                      part = MIMEBase('application', 'octet-stream')
+                      part.set_payload(fp.read())
+                  encoders.encode_base64(part)
+                  part.add_header('Content-Disposition', f'attachment; filename="{f}"')
+                  msg.attach(part)
+                  attached = True
+                  break
+
+          if not attached:
+              msg.attach(MIMEText("No .docx file was found to attach.", 'plain'))
+
+          with smtplib.SMTP('smtp.gmail.com', 587) as server:
+              server.starttls()
+              server.login(sender, password)
+              server.send_message(msg)
+
+          print("✅ Email sent successfully!")
+          EOF
