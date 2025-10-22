@@ -3,7 +3,7 @@ name: Kerala IT Park Job Scraper Automation
 on:
   schedule:
     # Runs at 8 AM, 3 PM, and 9 PM IST (converted to UTC)
-    - cron: '30 2,9,15 * * *'
+    - cron: '30 2,10,15 * * *'
   workflow_dispatch:  # allows manual trigger
 
 jobs:
