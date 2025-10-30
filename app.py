@@ -89,6 +89,8 @@ def fetch_infopark_jobs():
         page += 1
 
     print(f"✅ Found {len(jobs)} filtered technical jobs from Infopark.")
+    with open("app.log", "w") as log:
+        log.write(f"Found {len(jobs)} technical jobs from Infopark.\n")
     return jobs
 
 # ---- GENERATE PDF BROCHURE ----
@@ -114,7 +116,6 @@ def generate_maitexa_brochure(jobs):
     pdf = canvas.Canvas(OUTPUT_FILE, pagesize=A4)
     width, height = A4
 
-    # ---- HEADER DESIGN ----
     def draw_header(pdf):
         pdf.setFillColor(LIGHT_GREEN)
         pdf.circle(-120, height + 50, 300, stroke=0, fill=1)
@@ -130,13 +131,11 @@ def generate_maitexa_brochure(jobs):
 
         draw_text_with_shadow(COMPANY_NAME, "Helvetica-Bold", 20, width / 2, height - 65)
         draw_text_with_shadow(SLOGAN, "Helvetica-Oblique", 12, width / 2, height - 82)
-
         pdf.setFont("Helvetica", 9)
         pdf.setFillColor(WHITE)
         pdf.drawCentredString(width / 2, height - 98, ADDRESS)
         pdf.drawCentredString(width / 2, height - 110, f"{EMAIL} | {WEBSITE}")
 
-    # ---- WATERMARK ----
     def draw_watermark(pdf):
         if os.path.exists(LOGO_PATH):
             pdf.saveState()
@@ -145,14 +144,12 @@ def generate_maitexa_brochure(jobs):
             pdf.drawImage(LOGO_PATH, 0, 0, width=300, height=300, mask='auto')
             pdf.restoreState()
 
-    # ---- FOOTER CURVES ----
     def draw_footer(pdf):
         pdf.setFillColor(LIGHT_GREEN)
         pdf.circle(width - 200, -60, 300, stroke=0, fill=1)
         pdf.setFillColor(DARK_GREEN)
         pdf.circle(width + 100, -100, 300, stroke=0, fill=1)
 
-    # ---- JOB BOXES ----
     def draw_jobs(pdf, jobs):
         y = height - 170
         job_box_height = 90
@@ -166,16 +163,13 @@ def generate_maitexa_brochure(jobs):
 
             pdf.setFillColor(WHITE)
             pdf.roundRect(80, y - job_box_height, width - 160, job_box_height, 10, stroke=1, fill=1)
-
             pdf.setFont("Helvetica-Bold", 12)
             pdf.setFillColor(TEXT_COLOR)
             pdf.drawString(100, y - 25, f"{idx}. {job['title']}")
-
             pdf.setFont("Helvetica", 10)
             pdf.drawString(110, y - 40, f"🏢 {job['company']}")
             pdf.drawString(110, y - 55, f"📍 {job['location']}")
             pdf.drawString(110, y - 70, f"💼 {job['experience']}  |  📅 {job['date']}")
-
             if job["link"]:
                 pdf.setFillColor(colors.HexColor("#0033CC"))
                 pdf.setFont("Helvetica-Bold", 10)
@@ -184,7 +178,6 @@ def generate_maitexa_brochure(jobs):
             else:
                 pdf.setFillColor(colors.gray)
                 pdf.drawString(110, y - 85, "No link available")
-
             y -= job_box_height + 25
 
     def draw_footer_text(pdf):
@@ -201,12 +194,11 @@ def generate_maitexa_brochure(jobs):
 
     print(f"✅ Maitexa Brochure saved as: {OUTPUT_FILE}")
 
-# ---- MAIN EXECUTION ----
+# ---- MAIN ----
 def main():
     print("\n🚀 Scanning Kerala IT Parks for Technical Jobs (Excluding Java)...")
     infopark_jobs = fetch_infopark_jobs()
     driver.quit()
-
     if infopark_jobs:
         generate_maitexa_brochure(infopark_jobs)
         print("✅ PDF successfully created.")
