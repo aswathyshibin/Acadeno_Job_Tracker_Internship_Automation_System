@@ -57,36 +57,55 @@ jobs:
                   break
               time.sleep(2)
 
-          # Read job count
-          job_count = 0
-          if os.path.exists("app.log"):
-              with open("app.log") as f:
-                  for line in f:
-                      if "Found" in line and "jobs" in line:
-                          job_count = int("".join(filter(str.isdigit, line)))
-                          break
-
           msg = MIMEMultipart("alternative")
           msg["From"] = f"Maitexa Technologies <{sender}>"
           msg["To"] = ", ".join(recipients)
-          msg["Subject"] = f"🌿 Maitexa Kerala IT Jobs – {datetime.now().strftime('%d %b %Y, %I:%M %p')}"
+          msg["Subject"] = f"🌟 Exciting Career Opportunities Await You – {datetime.now().strftime('%d %b %Y')}"
 
-          html_content = f"""
-          <html><body style="font-family: Arial; font-size:15px; color:#222;">
-          <p>Dear Team,</p>
-          <p>We’re excited to share today’s curated <strong>Maitexa Kerala IT Jobs Brochure</strong> featuring opportunities across Infopark, Technopark, and Cyberpark.</p>
-          <p style="color:#007A33;"><strong>✅ {job_count if job_count else 'Several'} new technical openings (excluding Java)</strong></p>
-          <p><em>Great opportunities don’t happen — you create them.</em><br>Keep learning, keep growing, and make today count.</p>
-          <p style="margin-top:20px;">Best Wishes,<br>
-          <strong style="color:#007A33;">Maitexa Technologies Pvt Ltd</strong><br>
-          Kadannamanna, Malappuram, Kerala – 679324<br>
-          <a href='mailto:contact@maitexa.com'>contact@maitexa.com</a> |
-          <a href='https://www.maitexa.com'>www.maitexa.com</a></p>
-          <p style="font-size:12px; color:#666;">— Generated automatically by Maitexa Job Tracker © 2025</p>
-          </body></html>
+          # ✉️ Updated HTML Email Body (Professional & Motivational)
+          html_content = """
+          <html>
+          <body style="font-family: Arial, sans-serif; font-size:15px; color:#222; line-height:1.6;">
+              <p>Dear Team,</p>
+
+              <p>We are thrilled to inform you that <strong>new and exciting career opportunities</strong> are now open for talented individuals like you.</p>
+
+              <p>At <strong>Maitexa Technologies</strong>, we believe that dreams are the starting point of every great success story. 
+              This is your chance to chase your dreams and build a rewarding career with us.</p>
+
+              <p>
+              <strong>✨ Explore the latest openings</strong> and find the role that best fits your passion and skills.
+              </p>
+
+              <p style="margin-top: 10px; text-align: center;">
+                  <a href="https://infopark.in/companies/job-search" 
+                     style="background-color:#007A33; color:#fff; padding:10px 20px; text-decoration:none; border-radius:5px; font-weight:bold;">
+                     Click here to view current openings
+                  </a>
+              </p>
+
+              <p style="margin-top: 15px;">
+              Take a moment to look through the opportunities and apply for the position that aligns with your goals. 
+              <br>Your next big move could start today!
+              </p>
+
+              <p>We wish you all the best in your career journey. Let’s build a brighter future together!</p>
+
+              <p style="margin-top:20px;">Warm regards,<br>
+              <strong style="color:#007A33;">Maitexa Technologies Pvt Ltd</strong><br>
+              Kadannamanna, Malappuram, Kerala – 679324<br>
+              <a href='mailto:contact@maitexa.com'>contact@maitexa.com</a> |
+              <a href='https://www.maitexa.com'>www.maitexa.com</a>
+              </p>
+
+              <p style="font-size:12px; color:#666;">— Generated automatically by Maitexa Job Tracker © 2025</p>
+          </body>
+          </html>
           """
+
           msg.attach(MIMEText(html_content, "html"))
 
+          # Attach PDF if available
           if os.path.exists(pdf_file):
               with open(pdf_file, "rb") as f:
                   part = MIMEBase("application", "pdf")
@@ -97,9 +116,11 @@ jobs:
           else:
               msg.attach(MIMEText("⚠️ PDF not found – the scraper may have failed.", "plain"))
 
+          # Send Email
           with smtplib.SMTP("smtp.gmail.com", 587) as server:
               server.starttls()
               server.login(sender, password)
               server.send_message(msg)
-          print("✅ Email sent successfully!")
+
+          print("✅ Professional motivational email sent successfully with attachment!")
           EOF
