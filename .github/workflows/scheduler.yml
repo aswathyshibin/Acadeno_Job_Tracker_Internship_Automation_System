@@ -2,10 +2,10 @@ name: Kerala IT Park Job Scraper Automation
 
 on:
   schedule:
-    # ⏰ Runs at 8:00 AM, 4:20 PM, and 9:00 PM IST
+    # ⏰ Runs automatically at 8:00 AM, 4:20 PM, and 9:00 PM IST
     - cron: '30 2,15 * * *'   # 8:00 AM & 9:00 PM IST
     - cron: '50 10 * * *'     # 4:20 PM IST
-  workflow_dispatch:  # manual trigger option
+  workflow_dispatch:  # Manual trigger option
 
 jobs:
   run-script:
@@ -16,30 +16,39 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Python
+      # 2️⃣ Setup Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3️⃣ Install dependencies
+      # 3️⃣ Install Google Chrome (required for Selenium)
+      - name: Install Chrome browser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget unzip
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt install -y ./google-chrome-stable_current_amd64.deb
+          google-chrome --version
+
+      # 4️⃣ Install all required Python dependencies (including python-docx)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install selenium requests beautifulsoup4 reportlab webdriver-manager
+          pip install selenium requests beautifulsoup4 reportlab webdriver-manager python-docx
 
-      # 4️⃣ Run your scraper (this generates a new PDF)
+      # 5️⃣ Run your scraper script to generate the latest PDF
       - name: Run Maitexa job scraper
         run: python app.py
 
-      # 5️⃣ Upload the generated PDF as artifact (optional — for backup)
+      # 6️⃣ Upload the generated PDF (optional for backup)
       - name: Upload PDF Report
         uses: actions/upload-artifact@v4
         with:
           name: Maitexa_Job_Brochure
           path: Maitexa_Green_Adjusted_Brochure.pdf
 
-      # 6️⃣ Email the newly generated PDF
+      # 7️⃣ Email the latest generated PDF brochure
       - name: Send email with latest brochure
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
@@ -52,6 +61,7 @@ jobs:
           from email.mime.multipart import MIMEMultipart
           from email.mime.base import MIMEBase
           from email import encoders
+          from datetime import datetime
 
           sender = os.getenv("EMAIL_USER")
           password = os.getenv("EMAIL_PASS")
@@ -60,14 +70,18 @@ jobs:
           msg = MIMEMultipart()
           msg['From'] = sender
           msg['To'] = ", ".join(recipients)
-          msg['Subject'] = "📄 Maitexa Kerala IT Jobs – Daily Brochure"
-          msg.attach(MIMEText(
-              "Dear Team,\n\nAttached is the latest Maitexa Kerala IT Parks job brochure with fresh openings.\n\n"
-              "Regards,\nMaitexa Technologies\n", 
-              'plain'
-          ))
+          msg['Subject'] = f"📄 Maitexa Kerala IT Jobs – {datetime.now().strftime('%d %b %Y, %I:%M %p')}"
 
-          attached = False
+          body = (
+              "Dear Team,\n\n"
+              "Attached is the latest Maitexa Kerala IT Parks job brochure with newly listed openings.\n\n"
+              "Regards,\n"
+              "Maitexa Technologies Pvt Ltd\n"
+              "Kadannamanna, Malappuram, Kerala - 679324\n"
+              "contact@maitexa.com | www.maitexa.com\n"
+          )
+          msg.attach(MIMEText(body, 'plain'))
+
           pdf_file = "Maitexa_Green_Adjusted_Brochure.pdf"
           if os.path.exists(pdf_file):
               with open(pdf_file, 'rb') as f:
@@ -76,15 +90,13 @@ jobs:
               encoders.encode_base64(part)
               part.add_header('Content-Disposition', f'attachment; filename="{pdf_file}"')
               msg.attach(part)
-              attached = True
-
-          if not attached:
-              msg.attach(MIMEText("⚠️ PDF not found. The scraper may have failed to generate the file.", 'plain'))
+          else:
+              msg.attach(MIMEText("⚠️ PDF not found – the scraper may have failed.", 'plain'))
 
           with smtplib.SMTP('smtp.gmail.com', 587) as server:
               server.starttls()
               server.login(sender, password)
               server.send_message(msg)
 
-          print("✅ Email with latest Maitexa brochure sent successfully!")
+          print("✅ Email sent successfully with the latest Maitexa brochure!")
           EOF
