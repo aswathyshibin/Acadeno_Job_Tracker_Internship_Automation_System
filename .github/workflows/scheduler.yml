@@ -2,61 +2,45 @@ name: Kerala IT Park Job Scraper Automation
 
 on:
   schedule:
-    # ⏰ Runs automatically at 8:00 AM, 4:20 PM, and 9:00 PM IST
     - cron: '30 2,15 * * *'   # 8:00 AM & 9:00 PM IST
     - cron: '50 10 * * *'     # 4:20 PM IST
-  workflow_dispatch:  # Manual trigger option
+  workflow_dispatch:
 
 jobs:
   run-script:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Setup Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
-      # 3️⃣ Install Google Chrome (required for Selenium)
-      - name: Install Chrome browser
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y wget unzip
-          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
-          sudo apt install -y ./google-chrome-stable_current_amd64.deb
-          google-chrome --version
-
-      # 4️⃣ Install all required Python dependencies (including python-docx)
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install selenium requests beautifulsoup4 reportlab webdriver-manager python-docx
+          pip install selenium requests beautifulsoup4 reportlab webdriver-manager
 
-      # 5️⃣ Run your scraper script to generate the latest PDF
       - name: Run Maitexa job scraper
         run: python app.py
 
-      # 6️⃣ Upload the generated PDF (optional for backup)
       - name: Upload PDF Report
         uses: actions/upload-artifact@v4
         with:
           name: Maitexa_Job_Brochure
           path: Maitexa_Green_Adjusted_Brochure.pdf
 
-      # 7️⃣ Email the latest generated PDF brochure
-      - name: Send email with latest brochure
+      - name: Send professional email with brochure (no button)
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
         run: |
           python - <<'EOF'
-          import os, smtplib
+          import os, time, smtplib
           from email.mime.text import MIMEText
           from email.mime.multipart import MIMEMultipart
           from email.mime.base import MIMEBase
@@ -67,36 +51,67 @@ jobs:
           password = os.getenv("EMAIL_PASS")
           recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
 
-          msg = MIMEMultipart()
-          msg['From'] = sender
-          msg['To'] = ", ".join(recipients)
-          msg['Subject'] = f"📄 Maitexa Kerala IT Jobs – {datetime.now().strftime('%d %b %Y, %I:%M %p')}"
-
-          body = (
-              "Dear Team,\n\n"
-              "Attached is the latest Maitexa Kerala IT Parks job brochure with newly listed openings.\n\n"
-              "Regards,\n"
-              "Maitexa Technologies Pvt Ltd\n"
-              "Kadannamanna, Malappuram, Kerala - 679324\n"
-              "contact@maitexa.com | www.maitexa.com\n"
-          )
-          msg.attach(MIMEText(body, 'plain'))
-
           pdf_file = "Maitexa_Green_Adjusted_Brochure.pdf"
+
+          # Wait for the file to appear
+          for _ in range(10):
+              if os.path.exists(pdf_file):
+                  break
+              time.sleep(2)
+
+          msg = MIMEMultipart("alternative")
+          msg["From"] = f"Maitexa Technologies <{sender}>"
+          msg["To"] = ", ".join(recipients)
+          msg["Subject"] = f"🌟 Exciting Career Opportunities Await You – {datetime.now().strftime('%d %b %Y')}"
+
+          # ✉️ Simplified Professional HTML Email (No button)
+          html_content = """
+          <html>
+          <body style="font-family: Arial, sans-serif; font-size:15px; color:#222; line-height:1.6;">
+              <p>Dear Team,</p>
+
+              <p>We are thrilled to inform you that <strong>new and exciting career opportunities</strong> are now open for talented individuals like you.</p>
+
+              <p>At <strong>Maitexa Technologies</strong>, we believe that dreams are the starting point of every great success story. 
+              This is your chance to chase your dreams and build a rewarding career with us.</p>
+
+              <p>✨ <strong>Explore the latest openings</strong> and find the role that best fits your passion and skills.</p>
+
+              <p>Take a moment to look through the opportunities and apply for the position that aligns with your goals. 
+              <br>Your next big move could start today!</p>
+
+              <p>We wish you all the best in your career journey. Let’s build a brighter future together!</p>
+
+              <p style="margin-top:20px;">Warm regards,<br>
+              <strong style="color:#007A33;">Maitexa Technologies Pvt Ltd</strong><br>
+              Kadannamanna, Malappuram, Kerala – 679324<br>
+              <a href='mailto:contact@maitexa.com'>contact@maitexa.com</a> |
+              <a href='https://www.maitexa.com'>www.maitexa.com</a>
+              </p>
+
+              <p style="font-size:12px; color:#666;">— Generated automatically by Maitexa Job Tracker © 2025</p>
+          </body>
+          </html>
+          """
+
+          msg.attach(MIMEText(html_content, "html"))
+
+          # 📎 Attach PDF (Drive-style view)
           if os.path.exists(pdf_file):
-              with open(pdf_file, 'rb') as f:
-                  part = MIMEBase('application', 'pdf')
+              with open(pdf_file, "rb") as f:
+                  part = MIMEBase("application", "pdf")
                   part.set_payload(f.read())
               encoders.encode_base64(part)
-              part.add_header('Content-Disposition', f'attachment; filename="{pdf_file}"')
+              part.add_header("Content-Disposition", f'attachment; filename="{pdf_file}"')
               msg.attach(part)
           else:
-              msg.attach(MIMEText("⚠️ PDF not found – the scraper may have failed.", 'plain'))
+              msg.attach(MIMEText("⚠️ PDF not found – the scraper may have failed.", "plain"))
 
-          with smtplib.SMTP('smtp.gmail.com', 587) as server:
+          # Send Email
+          with smtplib.SMTP("smtp.gmail.com", 587) as server:
               server.starttls()
               server.login(sender, password)
               server.send_message(msg)
 
-          print("✅ Email sent successfully with the latest Maitexa brochure!")
+          print("✅ Professional motivational email sent successfully with Drive-style attachment!")
           EOF
