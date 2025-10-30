@@ -10,7 +10,7 @@ jobs:
   run-script:
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # allows uploading PDF back to repo
+      contents: write
 
     steps:
       - name: Checkout repository
@@ -29,18 +29,17 @@ jobs:
       - name: Run Maitexa job scraper
         run: python app.py
 
-      # 🟢 Commit the new PDF to repo so it can be accessed via GitHub Pages or blob viewer
-      - name: Commit and push PDF to repo
+      - name: Commit and push PDF for GitHub Pages hosting
         run: |
           mkdir -p pdf_reports
           mv Maitexa_Green_Adjusted_Brochure.pdf pdf_reports/
           git config --global user.name "Maitexa Auto Bot"
           git config --global user.email "noreply@maitexa.com"
           git add pdf_reports/Maitexa_Green_Adjusted_Brochure.pdf
-          git commit -m "Auto update Maitexa job brochure PDF" || echo "No changes to commit"
+          git commit -m "Auto update Maitexa job brochure PDF" || echo "No new changes"
           git push
 
-      - name: Send professional email with PDF viewer and download options
+      - name: Send professional email with proper view and download buttons
         env:
           EMAIL_USER: ${{ secrets.EMAIL_USER }}
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
@@ -48,7 +47,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           python - <<'EOF'
-          import os, smtplib, time
+          import os, smtplib
           from email.mime.text import MIMEText
           from email.mime.multipart import MIMEMultipart
           from datetime import datetime
@@ -58,10 +57,11 @@ jobs:
           recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
           repo = os.getenv("GITHUB_REPOSITORY")
 
-          # ✅ Blob URL (opens in GitHub viewer)
-          view_url = f"https://github.com/{repo}/blob/main/pdf_reports/Maitexa_Green_Adjusted_Brochure.pdf"
-          # ✅ Raw URL (downloads directly)
-          download_url = f"https://github.com/{repo}/raw/main/pdf_reports/Maitexa_Green_Adjusted_Brochure.pdf"
+          # 🌐 GitHub Pages base URL (update this with your actual Pages link)
+          pages_base = f"https://aswathyshibin.github.io/job_listing/pdf_reports"
+          pdf_filename = "Maitexa_Green_Adjusted_Brochure.pdf"
+          view_url = f"{pages_base}/{pdf_filename}"          # Opens in browser
+          download_url = f"{pages_base}/{pdf_filename}"      # Same link; browser handles download if user chooses
 
           msg = MIMEMultipart("alternative")
           msg["From"] = f"Maitexa Technologies <{sender}>"
@@ -81,23 +81,21 @@ jobs:
 
               <p>✨ <strong>Explore the latest openings</strong> and find the role that best fits your passion and skills.</p>
 
-              <p style="margin-top: 10px; text-align: center;">
+              <div style="text-align: center; margin-top: 20px;">
                   <a href="{view_url}" target="_blank"
-                     style="background-color:#007A33; color:#fff; padding:10px 20px; text-decoration:none; 
-                     border-radius:5px; font-weight:bold;">
-                     👉 Click here to view current openings
+                     style="background-color:#007A33; color:#fff; padding:12px 25px; 
+                     text-decoration:none; border-radius:6px; font-weight:bold; margin-right:10px;">
+                     👀 View Current Openings
                   </a>
-              </p>
 
-              <p style="text-align: center; margin-top: 10px;">
                   <a href="{download_url}" target="_blank"
-                     style="background-color:#444; color:#fff; padding:8px 18px; text-decoration:none; 
-                     border-radius:5px; font-weight:bold;">
+                     style="background-color:#007A33; color:#fff; padding:12px 25px; 
+                     text-decoration:none; border-radius:6px; font-weight:bold;">
                      ⬇️ Download Brochure (PDF)
                   </a>
-              </p>
+              </div>
 
-              <p style="margin-top: 15px;">
+              <p style="margin-top: 20px;">
               Take a moment to look through the opportunities and apply for the position that aligns with your goals.<br>
               Your next big move could start today!
               </p>
@@ -123,5 +121,5 @@ jobs:
               server.login(sender, password)
               server.send_message(msg)
 
-          print(f"✅ Email sent with viewable PDF link: {view_url}")
+          print(f"✅ Email sent with in-browser PDF view link: {view_url}")
           EOF
