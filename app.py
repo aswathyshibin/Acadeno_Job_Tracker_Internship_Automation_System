@@ -89,8 +89,6 @@ def fetch_infopark_jobs():
         page += 1
 
     print(f"✅ Found {len(jobs)} filtered technical jobs from Infopark.")
-    with open("app.log", "w") as log:
-        log.write(f"Found {len(jobs)} technical jobs from Infopark.\n")
     return jobs
 
 # ---- GENERATE PDF BROCHURE ----
@@ -110,48 +108,57 @@ def generate_maitexa_brochure(jobs):
 
     LIGHT_GREEN = colors.Color(0.6, 0.8, 0.6)
     DARK_GREEN = colors.Color(0.0, 0.5, 0.3)
-    WHITE = colors.white
     TEXT_COLOR = colors.HexColor("#003300")
 
     pdf = canvas.Canvas(OUTPUT_FILE, pagesize=A4)
     width, height = A4
 
+    # ---- HEADER ----
     def draw_header(pdf):
+        # Smaller green header background
         pdf.setFillColor(LIGHT_GREEN)
-        pdf.circle(-120, height + 50, 300, stroke=0, fill=1)
+        pdf.circle(-100, height + 30, 200, stroke=0, fill=1)
         pdf.setFillColor(DARK_GREEN)
-        pdf.circle(width / 2, height + 100, 350, stroke=0, fill=1)
+        pdf.circle(width / 2, height + 60, 250, stroke=0, fill=1)
+
+        # Add company logo to top-left corner
+        if os.path.exists(LOGO_PATH):
+            pdf.drawImage(LOGO_PATH, 50, height - 90, width=80, height=80, mask='auto')
 
         def draw_text_with_shadow(text, font, size, x, y):
             pdf.setFont(font, size)
             pdf.setFillColor(colors.black)
             pdf.drawCentredString(x + 0.5, y - 0.5, text)
-            pdf.setFillColor(WHITE)
+            pdf.setFillColor(colors.white)
             pdf.drawCentredString(x, y, text)
 
-        draw_text_with_shadow(COMPANY_NAME, "Helvetica-Bold", 20, width / 2, height - 65)
-        draw_text_with_shadow(SLOGAN, "Helvetica-Oblique", 12, width / 2, height - 82)
+        # Title slightly shifted to right to align with logo
+        draw_text_with_shadow(COMPANY_NAME, "Helvetica-Bold", 20, width / 2 + 20, height - 55)
+        draw_text_with_shadow(SLOGAN, "Helvetica-Oblique", 12, width / 2 + 20, height - 72)
         pdf.setFont("Helvetica", 9)
-        pdf.setFillColor(WHITE)
-        pdf.drawCentredString(width / 2, height - 98, ADDRESS)
-        pdf.drawCentredString(width / 2, height - 110, f"{EMAIL} | {WEBSITE}")
+        pdf.setFillColor(colors.white)
+        pdf.drawCentredString(width / 2 + 20, height - 86, ADDRESS)
+        pdf.drawCentredString(width / 2 + 20, height - 98, f"{EMAIL} | {WEBSITE}")
 
+    # ---- WATERMARK ----
     def draw_watermark(pdf):
         if os.path.exists(LOGO_PATH):
             pdf.saveState()
             pdf.translate(width / 2 - 150, height / 2 - 150)
-            pdf.setFillAlpha(0.18)
+            pdf.setFillAlpha(0.25)
             pdf.drawImage(LOGO_PATH, 0, 0, width=300, height=300, mask='auto')
             pdf.restoreState()
 
+    # ---- FOOTER ----
     def draw_footer(pdf):
         pdf.setFillColor(LIGHT_GREEN)
         pdf.circle(width - 200, -60, 300, stroke=0, fill=1)
         pdf.setFillColor(DARK_GREEN)
         pdf.circle(width + 100, -100, 300, stroke=0, fill=1)
 
+    # ---- JOBS ----
     def draw_jobs(pdf, jobs):
-        y = height - 170
+        y = height - 200
         job_box_height = 90
         for idx, job in enumerate(jobs, 1):
             if y < 130:
@@ -161,8 +168,14 @@ def generate_maitexa_brochure(jobs):
                 draw_footer(pdf)
                 y = height - 130
 
-            pdf.setFillColor(WHITE)
-            pdf.roundRect(80, y - job_box_height, width - 160, job_box_height, 10, stroke=1, fill=1)
+            # Transparent job box (no fill)
+            pdf.saveState()
+            pdf.setStrokeColor(TEXT_COLOR)
+            pdf.setLineWidth(1)
+            pdf.roundRect(80, y - job_box_height, width - 160, job_box_height, 10, stroke=1, fill=0)
+            pdf.restoreState()
+
+            # Job text
             pdf.setFont("Helvetica-Bold", 12)
             pdf.setFillColor(TEXT_COLOR)
             pdf.drawString(100, y - 25, f"{idx}. {job['title']}")
@@ -170,6 +183,7 @@ def generate_maitexa_brochure(jobs):
             pdf.drawString(110, y - 40, f"🏢 {job['company']}")
             pdf.drawString(110, y - 55, f"📍 {job['location']}")
             pdf.drawString(110, y - 70, f"💼 {job['experience']}  |  📅 {job['date']}")
+
             if job["link"]:
                 pdf.setFillColor(colors.HexColor("#0033CC"))
                 pdf.setFont("Helvetica-Bold", 10)
@@ -178,8 +192,10 @@ def generate_maitexa_brochure(jobs):
             else:
                 pdf.setFillColor(colors.gray)
                 pdf.drawString(110, y - 85, "No link available")
+
             y -= job_box_height + 25
 
+    # ---- FOOTER TEXT ----
     def draw_footer_text(pdf):
         pdf.setFont("Helvetica-Oblique", 9)
         pdf.setFillColor(TEXT_COLOR)
