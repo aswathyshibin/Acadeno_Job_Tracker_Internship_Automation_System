@@ -111,6 +111,10 @@ def send_email_with_jobs(jobs):
     recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
     TRACKER_URL = os.getenv("TRACKER_URL")
 
+    # ensure HTTPS prefix in case secret is incomplete
+    if not TRACKER_URL.startswith("https://"):
+        TRACKER_URL = "https://" + TRACKER_URL.lstrip("http://")
+
     for student in recipients:
         msg = MIMEMultipart("alternative")
         msg["From"] = f"Maitexa Technologies <{sender}>"
