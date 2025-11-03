@@ -1,225 +1,178 @@
 import time
-import re
 import requests
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.webdriver.common.by import By
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from datetime import datetime
 import os
 
-# ---- CHROME CONFIG ----
-chrome_options = Options()
-chrome_options.add_argument("headless")
-chrome_options.add_argument("disable-gpu")
-chrome_options.add_argument("no-sandbox")
-chrome_options.add_argument("disable-dev-shm-usage")
-chrome_options.add_argument(
-    "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-)
+# ======================================
+# CONFIGURATION (from GitHub Secrets)
+# ======================================
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
-time.sleep(1)
+SENDER_EMAIL = os.getenv("EMAIL_USER")                     # Gmail sender
+SENDER_PASS = os.getenv("EMAIL_PASS")                      # Gmail App Password
+TRACKER_URL = os.getenv("TRACKER_URL",
+    "https://script.google.com/macros/s/AKfycbydHHAX5zK8dMNcn_kurn5zdTIymCg17tvRhydnE1X9YPPmNsr2CWWk-ygZqls_Tikj/exec")
+EMAIL_TO = os.getenv("EMAIL_TO", "")
+STUDENTS = [x.strip() for x in EMAIL_TO.split(",") if x.strip()]
 
-# ---- JOB FILTERS ----
-TECHNICAL_ROLES = [
-    "data scientist", "data science", "data analyst", "machine learning", "ml", "ai",
-    "python", "django", "flask", "full stack", "react", "angular", "vue", "javascript",
-    "typescript", "intern", "trainee", "developer", "engineer"
-]
-EXCLUDE_ROLES = ["php", "laravel", "wordpress", "drupal", ".net", "c#", "java", "spring", "hibernate"]
+# ======================================
+# SCRAPE JOBS FROM INFOPARK
+# ======================================
 
-# ---- SCRAPE FROM INFOPARK ----
 def fetch_infopark_jobs():
-    print("Fetching jobs from Infopark...")
-    jobs = []
-    page = 1
+    print("🔍 Fetching latest jobs from Infopark...")
 
-    while page <= 5:
+    chrome_options = Options()
+    chrome_options.add_argument("headless")
+    chrome_options.add_argument("disable-gpu")
+    chrome_options.add_argument("no-sandbox")
+    chrome_options.add_argument("disable-dev-shm-usage")
+
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
+    jobs = []
+
+    TECHNICAL_ROLES = [
+        "data scientist", "data science", "data analyst", "machine learning", "ml", "ai",
+        "python", "django", "flask", "full stack", "react", "angular", "vue", "javascript",
+        "typescript", "intern", "trainee", "developer", "engineer"
+    ]
+    EXCLUDE_ROLES = ["php", "laravel", "wordpress", "drupal", ".net", "c#", "java", "spring", "hibernate"]
+
+    for page in range(1, 4):
         url = f"https://infopark.in/companies/job-search?page={page}"
         try:
             driver.get(url)
             time.sleep(2)
-        except Exception as e:
-            print(f"⚠️ Failed to load {url}: {e}")
-            page += 1
-            continue
+            soup = BeautifulSoup(driver.page_source, "html.parser")
 
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        table = soup.find("table")
-        if not table:
-            break
+            table = soup.find("table")
+            if not table:
+                break
 
-        rows = table.find_all("tr")[1:]
-        for row in rows:
-            cols = row.find_all("td")
-            if len(cols) < 3:
-                continue
+            rows = table.find_all("tr")[1:]
+            for row in rows:
+                cols = row.find_all("td")
+                if len(cols) < 3:
+                    continue
 
-            date = cols[0].text.strip()
-            title = cols[1].text.strip()
-            company = cols[2].text.strip()
+                date = cols[0].text.strip()
+                title = cols[1].text.strip()
+                company = cols[2].text.strip()
 
-            link_element = row.find("a", href=True)
-            job_link = ""
-            if link_element:
-                job_link = link_element["href"]
+                link_tag = row.find("a", href=True)
+                if not link_tag:
+                    continue
+                job_link = link_tag["href"]
                 if not job_link.startswith("http"):
                     job_link = f"https://infopark.in{job_link}"
 
-            title_lower = title.lower()
-            if any(ex in title_lower for ex in EXCLUDE_ROLES):
-                continue
-            if any(role in title_lower for role in TECHNICAL_ROLES):
-                experience = "0–2 years" if "intern" not in title_lower else "Intern"
-                jobs.append({
-                    "park": "Infopark",
-                    "title": title,
-                    "company": company,
-                    "experience": experience,
-                    "date": date,
-                    "location": "Infopark, Kochi",
-                    "link": job_link
-                })
+                title_lower = title.lower()
+                if any(ex in title_lower for ex in EXCLUDE_ROLES):
+                    continue
+                if any(role in title_lower for role in TECHNICAL_ROLES):
+                    jobs.append({
+                        "title": title,
+                        "company": company,
+                        "date": date,
+                        "link": job_link
+                    })
+        except Exception as e:
+            print(f"⚠️ Error loading {url}: {e}")
 
-        page += 1
-
-    print(f"✅ Found {len(jobs)} filtered technical jobs from Infopark.")
+    driver.quit()
+    print(f"✅ Found {len(jobs)} technical jobs.")
     return jobs
 
-# ---- GENERATE PDF BROCHURE ----
-def generate_maitexa_brochure(jobs):
+# ======================================
+# SEND JOB EMAILS (HTML + TRACKING)
+# ======================================
+
+def send_job_emails(jobs):
     if not jobs:
-        print("No jobs to add to brochure.")
+        print("⚠️ No jobs found to send.")
         return
 
-    OUTPUT_FILE = os.path.join(os.getcwd(), "Maitexa_Green_Adjusted_Brochure.pdf")
-    LOGO_PATH = "maitexa_logo.png"
+    print(f"📧 Sending job updates to {len(STUDENTS)} students...")
 
-    COMPANY_NAME = "MAITEXA TECHNOLOGIES PVT LTD"
-    SLOGAN = "Integrating Minds"
-    ADDRESS = "Kadannamanna, Malappuram, Kerala - 679324"
-    EMAIL = "contact@maitexa.com"
-    WEBSITE = "www.maitexa.com"
+    for student in STUDENTS:
+        msg = MIMEMultipart("alternative")
+        msg["From"] = f"Maitexa Technologies <{SENDER_EMAIL}>"
+        msg["To"] = student
+        msg["Subject"] = f"🌿 Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
 
-    LIGHT_GREEN = colors.Color(0.6, 0.8, 0.6)
-    DARK_GREEN = colors.Color(0.0, 0.5, 0.3)
-    TEXT_COLOR = colors.HexColor("#003300")
+        html = f"""
+        <html>
+        <body style="font-family:'Segoe UI',Arial,sans-serif;background-color:#f5fff8;padding:25px;">
+        <div style="background-color:#007A33;color:white;padding:18px;border-radius:8px 8px 0 0;">
+            <h2 style="margin:0;">🌟 Kerala IT Park Job Updates</h2>
+        </div>
+        <div style="background:white;border:1px solid #007A33;border-top:none;padding:20px;border-radius:0 0 8px 8px;">
+            <p>Dear Team,</p>
+            <p>We’re delighted to bring you today’s <strong>curated job updates</strong> from Infopark, Technopark, and Cyberpark!</p>
+            <p>Every opportunity is a stepping stone toward your dream career — explore, apply, and grow with confidence. 🚀</p>
+            <hr style="border:0;height:1px;background:#007A33;">
+        """
 
-    pdf = canvas.Canvas(OUTPUT_FILE, pagesize=A4)
-    width, height = A4
+        for job in jobs:
+            tracked_link = (
+                f"{TRACKER_URL}?email={student}"
+                f"&job={job['title'].replace(' ', '%20')}"
+                f"&link={job['link']}"
+            )
+            html += f"""
+            <div style="margin:15px 0;padding:15px;border:1px solid #ccc;border-radius:8px;">
+                <h3 style="color:#007A33;margin-bottom:5px;">{job['title']}</h3>
+                <p style="margin:2px 0;">🏢 <b>{job['company']}</b></p>
+                <p style="margin:2px 0;">📅 {job['date']}</p>
+                <a href="{tracked_link}" 
+                   style="display:inline-block;margin-top:6px;background:#007A33;color:white;
+                          text-decoration:none;padding:8px 14px;border-radius:5px;font-weight:bold;">
+                   🔗 View & Apply
+                </a>
+            </div>
+            """
 
-    # ---- HEADER ----
-    def draw_header(pdf):
-        # Smaller green header background
-        pdf.setFillColor(LIGHT_GREEN)
-        pdf.circle(-100, height + 30, 200, stroke=0, fill=1)
-        pdf.setFillColor(DARK_GREEN)
-        pdf.circle(width / 2, height + 60, 250, stroke=0, fill=1)
+        html += """
+            <hr style="border:0;height:1px;background:#007A33;margin-top:20px;">
+            <p>Keep learning, keep applying — the right opportunity is just a click away!</p>
+            <p style="color:#007A33;font-weight:bold;">Warm regards,<br>
+            Maitexa Technologies Pvt Ltd<br>
+            Kadannamanna, Malappuram, Kerala<br>
+            <a href='mailto:contact@maitexa.com'>contact@maitexa.com</a> |
+            <a href='https://www.maitexa.com'>www.maitexa.com</a></p>
+            <p style="font-size:12px;color:#777;">— Generated automatically by Maitexa Job Tracker © 2025</p>
+        </div>
+        </body>
+        </html>
+        """
 
-        # Add company logo to top-left corner
-        if os.path.exists(LOGO_PATH):
-            pdf.drawImage(LOGO_PATH, 50, height - 90, width=80, height=80, mask='auto')
+        msg.attach(MIMEText(html, "html"))
 
-        def draw_text_with_shadow(text, font, size, x, y):
-            pdf.setFont(font, size)
-            pdf.setFillColor(colors.black)
-            pdf.drawCentredString(x + 0.5, y - 0.5, text)
-            pdf.setFillColor(colors.white)
-            pdf.drawCentredString(x, y, text)
+        try:
+            with smtplib.SMTP("smtp.gmail.com", 587) as server:
+                server.starttls()
+                server.login(SENDER_EMAIL, SENDER_PASS)
+                server.send_message(msg)
+                print(f"✅ Email sent to {student}")
+        except Exception as e:
+            print(f"❌ Failed to send email to {student}: {e}")
 
-        # Title slightly shifted to right to align with logo
-        draw_text_with_shadow(COMPANY_NAME, "Helvetica-Bold", 20, width / 2 + 20, height - 55)
-        draw_text_with_shadow(SLOGAN, "Helvetica-Oblique", 12, width / 2 + 20, height - 72)
-        pdf.setFont("Helvetica", 9)
-        pdf.setFillColor(colors.white)
-        pdf.drawCentredString(width / 2 + 20, height - 86, ADDRESS)
-        pdf.drawCentredString(width / 2 + 20, height - 98, f"{EMAIL} | {WEBSITE}")
+# ======================================
+# MAIN
+# ======================================
 
-    # ---- WATERMARK ----
-    def draw_watermark(pdf):
-        if os.path.exists(LOGO_PATH):
-            pdf.saveState()
-            pdf.translate(width / 2 - 150, height / 2 - 150)
-            pdf.setFillAlpha(0.25)
-            pdf.drawImage(LOGO_PATH, 0, 0, width=300, height=300, mask='auto')
-            pdf.restoreState()
-
-    # ---- FOOTER ----
-    def draw_footer(pdf):
-        pdf.setFillColor(LIGHT_GREEN)
-        pdf.circle(width - 200, -60, 300, stroke=0, fill=1)
-        pdf.setFillColor(DARK_GREEN)
-        pdf.circle(width + 100, -100, 300, stroke=0, fill=1)
-
-    # ---- JOBS ----
-    def draw_jobs(pdf, jobs):
-        y = height - 200
-        job_box_height = 90
-        for idx, job in enumerate(jobs, 1):
-            if y < 130:
-                pdf.showPage()
-                draw_watermark(pdf)
-                draw_header(pdf)
-                draw_footer(pdf)
-                y = height - 130
-
-            # Transparent job box (no fill)
-            pdf.saveState()
-            pdf.setStrokeColor(TEXT_COLOR)
-            pdf.setLineWidth(1)
-            pdf.roundRect(80, y - job_box_height, width - 160, job_box_height, 10, stroke=1, fill=0)
-            pdf.restoreState()
-
-            # Job text
-            pdf.setFont("Helvetica-Bold", 12)
-            pdf.setFillColor(TEXT_COLOR)
-            pdf.drawString(100, y - 25, f"{idx}. {job['title']}")
-            pdf.setFont("Helvetica", 10)
-            pdf.drawString(110, y - 40, f"🏢 {job['company']}")
-            pdf.drawString(110, y - 55, f"📍 {job['location']}")
-            pdf.drawString(110, y - 70, f"💼 {job['experience']}  |  📅 {job['date']}")
-
-            if job["link"]:
-                pdf.setFillColor(colors.HexColor("#0033CC"))
-                pdf.setFont("Helvetica-Bold", 10)
-                pdf.drawString(110, y - 85, "🔗 Apply Job")
-                pdf.linkURL(job["link"], (110, y - 90, width - 100, y - 75))
-            else:
-                pdf.setFillColor(colors.gray)
-                pdf.drawString(110, y - 85, "No link available")
-
-            y -= job_box_height + 25
-
-    # ---- FOOTER TEXT ----
-    def draw_footer_text(pdf):
-        pdf.setFont("Helvetica-Oblique", 9)
-        pdf.setFillColor(TEXT_COLOR)
-        pdf.drawCentredString(width / 2, 40, "Generated by Maitexa Job Tracker © 2025 | Infopark • Technopark • Cyberpark")
-
-    draw_watermark(pdf)
-    draw_header(pdf)
-    draw_footer(pdf)
-    draw_jobs(pdf, jobs)
-    draw_footer_text(pdf)
-    pdf.save()
-
-    print(f"✅ Maitexa Brochure saved as: {OUTPUT_FILE}")
-
-# ---- MAIN ----
 def main():
-    print("\n🚀 Scanning Kerala IT Parks for Technical Jobs (Excluding Java)...")
-    infopark_jobs = fetch_infopark_jobs()
-    driver.quit()
-    if infopark_jobs:
-        generate_maitexa_brochure(infopark_jobs)
-        print("✅ PDF successfully created.")
-    else:
-        print("⚠️ No matching jobs found.")
+    print("\n🚀 Maitexa Job Scraper Automation Started...")
+    jobs = fetch_infopark_jobs()
+    send_job_emails(jobs)
+    print("✅ All tasks completed successfully!\n")
 
 if __name__ == "__main__":
     main()
