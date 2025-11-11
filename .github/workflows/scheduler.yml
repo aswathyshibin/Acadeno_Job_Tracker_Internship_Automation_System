@@ -2,8 +2,7 @@ name: Kerala IT Park Job Scraper Automation
 
 on:
   schedule:
-    - cron: '30 2,15 * * *'   # 8:00 AM & 9:00 PM IST
-    - cron: '50 10 * * *'     # 4:20 PM IST
+    - cron: '0 4 * * *'   # Runs every day at 10:00 AM IST (4:30 AM UTC)
   workflow_dispatch:
 
 jobs:
@@ -30,4 +29,5 @@ jobs:
           EMAIL_PASS: ${{ secrets.EMAIL_PASS }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
           TRACKER_URL: ${{ secrets.TRACKER_URL }}
+          STUDENT_NAMES: ${{ secrets.STUDENT_NAMES }}  # ✅ Taken from GitHub Secrets (not hardcoded)
         run: python app.py
