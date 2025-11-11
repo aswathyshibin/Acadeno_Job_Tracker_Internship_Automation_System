@@ -1,7 +1,6 @@
 import os
 import smtplib
 import time
-import requests
 import urllib.parse
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -56,38 +55,44 @@ def send_email(jobs):
     sender = os.getenv("EMAIL_USER")
     password = os.getenv("EMAIL_PASS")
     recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
-    tracker_url = os.getenv("TRACKER_URL")  # your Google Apps Script exec link
+    tracker_url = os.getenv("TRACKER_URL")
 
+    # ✅ Update your subject here
     subject = f"🌟 Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
 
     for student_email in recipients:
-        html = """
+        html = f"""
         <html>
-        <body style="font-family:Arial;background:#f4f8f5;padding:20px;">
-        <div style="background:#007A33;padding:15px;border-radius:12px;color:white;text-align:center;">
-            <h2>Acadeno Technologies Private Limited</h2>
-            <p>4437, First Floor, AVS Tower, Opp. Jayalakshmi Silks, Kallai Road, Calicut,673002, Kerala</p>
-        </div><br>
-        <p>Dear <b>{email}</b>,</p>
-        <p>Every great career begins with a single step — a moment of courage, determination, and belief in yourself. 🌱
-At Acadeno Technologies, we believe that your journey matters as much as your destination. The opportunities before you are not just job openings — they are doors to your future, waiting for you to knock with confidence, curiosity, and commitment.
+        <body style="font-family:Arial, sans-serif; background:#f4f8f5; padding:25px; line-height:1.6;">
 
-💡 Remember:
+        <div style="background:#007A33; padding:20px; border-radius:12px; color:white; text-align:center;">
+            <h2 style="margin:0;">Acadeno Technologies Private Limited</h2>
+            <p style="margin:5px 0;">4437, First Floor, AVS Tower, Opp. Jayalakshmi Silks, Kallai Road, Calicut, 673002, Kerala</p>
+        </div>
 
-You don’t need to be perfect to begin — you just need to begin.</br>
+        <div style="background:white; padding:20px; border-radius:12px; margin-top:20px;">
+            <p>Dear <b>{student_email}</b>,</p>
 
-Every interview you attend, every resume you refine, and every challenge you face brings you one step closer to your goal.</br>
+            <p>Every great career begins with a single step — a moment of courage, determination, and belief in yourself. 🌱</p>
 
-Growth happens when you step out of your comfort zone and trust your own potential.</br>
+            <p>At Acadeno Technologies, we believe that your journey matters as much as your destination. The opportunities before you are not just job openings — they are doors to your future, waiting for you to knock with confidence, curiosity, and commitment. 💡</p>
 
-So take this chance, believe in your abilities, and give your best. The effort you put in today will become the story you’re proud to tell tomorrow. 🌟</br>
+            <p><b>Remember:</b> You don’t need to be perfect to begin — you just need to begin.</p>
 
-Your future is not waiting to happen — it’s waiting for you to make it happen.</br>
+            <p>Every interview you attend, every resume you refine, and every challenge you face brings you one step closer to your goal. Growth happens when you step out of your comfort zone and trust your own potential.</p>
 
-With best wishes,</br>
-<b>Team Acadeno Technologies Pvt. Ltd.<b></p>
-        """.format(email=student_email)
+            <p>So take this chance, believe in your abilities, and give your best. The effort you put in today will become the story you’re proud to tell tomorrow. 🌟</p>
 
+            <p>Your future is not waiting to happen — it’s waiting for you to make it happen.</p>
+
+            <p>With best wishes,</p>
+            <p><b>Team Acadeno Technologies Pvt. Ltd.</b></p>
+        </div>
+
+        <div style="margin-top:25px;">
+        """
+
+        # ---- Job Cards ----
         for job in jobs:
             safe_link = urllib.parse.quote(job['link'], safe='')
             safe_title = urllib.parse.quote(job['title'], safe='')
@@ -96,14 +101,21 @@ With best wishes,</br>
             tracking_link = f"{tracker_url}?email={safe_email}&job={safe_title}&link={safe_link}"
 
             html += f"""
-            <div style="border:1px solid #ccc;border-radius:10px;padding:12px;margin-bottom:12px;background:white;">
-                <h3 style="color:#007A33;margin:0;">{job['title']}</h3>
-                <p>🏢 {job['company']}</p>
-                <a href="{tracking_link}" style="display:inline-block;background:#007A33;color:white;padding:8px 14px;text-decoration:none;border-radius:6px;">View & Apply</a>
+            <div style="border:1px solid #ddd; border-radius:10px; padding:15px; background:#ffffff; margin-bottom:15px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+                <h3 style="color:#007A33; margin:0;">{job['title']}</h3>
+                <p style="margin:6px 0;">🏢 {job['company']}</p>
+                <a href="{tracking_link}" style="display:inline-block; background:#007A33; color:white; padding:10px 18px; text-decoration:none; border-radius:6px; font-weight:bold;">🔗 View & Apply</a>
             </div>
             """
 
-        html += "<p style='font-size:12px;color:#777;'>Generated by Maitexa Job Tracker © 2025</p></body></html>"
+        html += """
+        </div>
+        <p style="font-size:12px; color:#777; margin-top:30px; text-align:center;">
+            Generated by Maitexa Job Tracker © 2025
+        </p>
+        </body>
+        </html>
+        """
 
         msg = MIMEMultipart("alternative")
         msg["From"] = sender
