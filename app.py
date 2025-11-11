@@ -57,16 +57,18 @@ def send_email(jobs):
     password = os.getenv("EMAIL_PASS")
     recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
 
-    # ✅ FIXED: Handle GitHub newlines, carriage returns, and spaces correctly
+    # 🧩 Debug: Read and clean STUDENT_NAMES from GitHub
+    raw_names = os.getenv("STUDENT_NAMES", "")
+    print(f"🧩 Raw STUDENT_NAMES from GitHub → '{raw_names}'")
+
     student_names = [
-        x.strip() for x in os.getenv("STUDENT_NAMES", "")
-        .replace("\r", "")
+        x.strip() for x in raw_names.replace("\r", "")
         .replace("\n", "")
         .replace(" ,", ",")
         .replace(", ", ",")
-        .split(",")
-        if x.strip()
+        .split(",") if x.strip()
     ]
+    print(f"✅ Parsed student_names → {student_names}")
 
     tracker_url = os.getenv("TRACKER_URL")
 
@@ -74,23 +76,16 @@ def send_email(jobs):
     subject = f"🚀 Acadeno Technologies | Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
     logo_url = "https://drive.google.com/uc?export=view&id=1wLdjI3WqmmeZcCbsX8aADhP53mRXthtB"
 
-    # 🔍 DEBUG INFO
-    print("🔍 Loaded Secrets:")
-    print(f"EMAIL_TO → {recipients}")
-    print(f"STUDENT_NAMES → {student_names}")
-    print(f"Counts → EMAILS={len(recipients)}, NAMES={len(student_names)}")
-    print("-" * 60)
-
     # ✅ Validate counts
     if len(student_names) != len(recipients):
         print(f"⚠️ Warning: STUDENT_NAMES count ({len(student_names)}) does not match EMAIL_TO count ({len(recipients)}).")
         print("Continuing with available names (matching by index)...\n")
 
     for index, student_email in enumerate(recipients):
-        # ✅ Safely get student name or fallback to “Student”
+        # ✅ Safely get student name or fallback
         student_name = student_names[index] if index < len(student_names) else "Student"
 
-        # ---- Email HTML ----
+        # ---- EMAIL BODY ----
         html = f"""
         <html>
         <body style="font-family:Arial, sans-serif; background:#f4f8f5; padding:25px; line-height:1.6;">
@@ -128,7 +123,7 @@ def send_email(jobs):
         <div style="margin-top:30px;">
         """
 
-        # ---- Job Cards ----
+        # ---- JOB CARDS ----
         for job in jobs:
             safe_link = urllib.parse.quote(job['link'], safe='')
             safe_title = urllib.parse.quote(job['title'], safe='')
