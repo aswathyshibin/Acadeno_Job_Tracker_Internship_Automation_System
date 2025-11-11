@@ -58,24 +58,19 @@ def send_email(jobs):
     student_names = [x.strip() for x in os.getenv("STUDENT_NAMES", "").split(",") if x.strip()]
     tracker_url = os.getenv("TRACKER_URL")
 
-    # ✅ Subject line with branding
+    # ✅ Subject line
     subject = f"🚀 Acadeno Technologies | Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
-
-    # ✅ Logo URL
     logo_url = "https://drive.google.com/uc?export=view&id=1wLdjI3WqmmeZcCbsX8aADhP53mRXthtB"
 
-    # ✅ Warn if name count mismatched
+    # ✅ Validate order
     if len(student_names) != len(recipients):
-        print(f"⚠️ Warning: {len(recipients)} emails but {len(student_names)} names — fallback will apply automatically.")
+        raise ValueError(
+            f"❌ STUDENT_NAMES count ({len(student_names)}) must match EMAIL_TO count ({len(recipients)})."
+        )
 
     for index, student_email in enumerate(recipients):
-        # ✅ Match the name with the corresponding email or auto-format
-        if index < len(student_names) and student_names[index]:
-            student_name = student_names[index]
-        else:
-            raw_name = student_email.split("@")[0]
-            parts = raw_name.replace(".", " ").replace("_", " ").split()
-            student_name = " ".join([p.capitalize() for p in parts])
+        # ✅ Use ONLY the name from STUDENT_NAMES (no fallback)
+        student_name = student_names[index]
 
         html = f"""
         <html>
@@ -139,7 +134,7 @@ def send_email(jobs):
         </html>
         """
 
-        # ---- Send Email ----
+        # ---- SEND EMAIL ----
         msg = MIMEMultipart("alternative")
         msg["From"] = sender
         msg["To"] = student_email
