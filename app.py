@@ -62,15 +62,21 @@ def send_email(jobs):
     subject = f"🚀 Acadeno Technologies | Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
     logo_url = "https://drive.google.com/uc?export=view&id=1wLdjI3WqmmeZcCbsX8aADhP53mRXthtB"
 
-    # ✅ Validate order
-    if len(student_names) != len(recipients):
-        raise ValueError(
-            f"❌ STUDENT_NAMES count ({len(student_names)}) must match EMAIL_TO count ({len(recipients)})."
-        )
+    # 🔍 DEBUG: Print loaded secrets and counts
+    print("🔍 Loaded Secrets:")
+    print(f"EMAIL_TO → {recipients}")
+    print(f"STUDENT_NAMES → {student_names}")
+    print(f"Counts → EMAILS={len(recipients)}, NAMES={len(student_names)}")
+    print("-" * 60)
 
+    # ✅ Validate list counts
+    if len(student_names) != len(recipients):
+        print(f"⚠️ Warning: STUDENT_NAMES count ({len(student_names)}) does not match EMAIL_TO count ({len(recipients)}).")
+        print("Continuing with available names (matching by index)...\n")
+    
     for index, student_email in enumerate(recipients):
-        # ✅ Use ONLY the name from STUDENT_NAMES (no fallback)
-        student_name = student_names[index]
+        # ✅ Safely handle case when name list is shorter
+        student_name = student_names[index] if index < len(student_names) else "Student"
 
         html = f"""
         <html>
@@ -87,7 +93,7 @@ def send_email(jobs):
 
         <!-- BODY -->
         <div style="background:white; padding:25px; border-radius:12px; margin-top:25px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
-            <p>Dear <b>{student_name}</b>,</p>
+            <p>Dear <b style="color:#5B00C2;">{student_name}</b>,</p>
 
             <p>Every great career begins with a single step — a moment of courage, determination, and belief in yourself. 🌱</p>
 
