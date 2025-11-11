@@ -57,8 +57,16 @@ def send_email(jobs):
     password = os.getenv("EMAIL_PASS")
     recipients = [x.strip() for x in os.getenv("EMAIL_TO", "").split(",") if x.strip()]
 
-    # ✅ FIXED: Clean GitHub newline issue in secret
-    student_names = [x.strip() for x in os.getenv("STUDENT_NAMES", "").replace("\n", "").split(",") if x.strip()]
+    # ✅ FIXED: Handle GitHub newlines, carriage returns, and spaces correctly
+    student_names = [
+        x.strip() for x in os.getenv("STUDENT_NAMES", "")
+        .replace("\r", "")
+        .replace("\n", "")
+        .replace(" ,", ",")
+        .replace(", ", ",")
+        .split(",")
+        if x.strip()
+    ]
 
     tracker_url = os.getenv("TRACKER_URL")
 
@@ -66,7 +74,7 @@ def send_email(jobs):
     subject = f"🚀 Acadeno Technologies | Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
     logo_url = "https://drive.google.com/uc?export=view&id=1wLdjI3WqmmeZcCbsX8aADhP53mRXthtB"
 
-    # 🔍 DEBUG: Show secret values in log (no passwords)
+    # 🔍 DEBUG INFO
     print("🔍 Loaded Secrets:")
     print(f"EMAIL_TO → {recipients}")
     print(f"STUDENT_NAMES → {student_names}")
