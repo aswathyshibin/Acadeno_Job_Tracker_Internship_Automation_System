@@ -73,7 +73,7 @@ def send_email(jobs):
     tracker_url = os.getenv("TRACKER_URL")
 
     # ✅ Subject line
-    subject = f"🚀 Acadeno Technologies | Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
+    subject = f"Acadeno Technologies | Latest Kerala IT Park Jobs – {datetime.now().strftime('%d %b %Y')}"
     logo_url = "https://drive.google.com/uc?export=view&id=1wLdjI3WqmmeZcCbsX8aADhP53mRXthtB"
 
     # ✅ Validate counts
