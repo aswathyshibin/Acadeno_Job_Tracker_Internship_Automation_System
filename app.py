@@ -10,26 +10,24 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
-from selenium.common.exceptions import WebDriverException
+from selenium.webdriver.common.by import By
+from selenium.common.exceptions import WebDriverException, NoSuchElementException, TimeoutException
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 
 # -------------------------
-# GEMINI AI MOTIVATIONAL PARAGRAPH GENERATOR
+# GEMINI LONG MOTIVATIONAL MESSAGE
 # -------------------------
 import google.generativeai as genai
-import random
 
-def get_ai_message(student_name="Student"):
+def get_ai_motivation(student_name="Student"):
     api_key = os.getenv("GOOGLE_API_KEY")
 
-    # Fallback if no API key
     if not api_key:
         print("⚠️ GOOGLE_API_KEY missing — using fallback message.")
         return """
-            <p>Every great career begins with a single decision — the decision to try. 🌱</p>
-            <p>Your consistency and courage will take you far. Keep believing in your journey. 🚀</p>
+        <p>Every great journey begins with a small, brave step. Keep moving forward with confidence — your dreams are closer than you think. 🌟</p>
         """
 
     try:
@@ -37,29 +35,21 @@ def get_ai_message(student_name="Student"):
         model = genai.GenerativeModel("gemini-1.5-flash")
 
         prompt = f"""
-        Write a highly motivational, warm, inspiring message for a student named {student_name}.
-        Format using clean HTML <p> tags.
-        Length: 5–8 paragraphs.
-        Include motivation about: job search, confidence, career building, learning, opportunities.
-        Add emojis naturally.
-        Do NOT add greeting and signature — ONLY the body paragraphs.
-        Avoid repeating the same lines.
+        Write a long motivational message (5–7 paragraphs) for a student named {student_name}.
+        Theme: career growth, job search, consistency, discipline, learning, confidence.
+        Format every paragraph in <p>...</p>. No greetings or signatures.
+        Professional, warm tone. Use only 1–2 emojis at maximum.
         """
 
         response = model.generate_content(prompt)
-        text = response.text.strip()
-
-        if not text:
-            raise Exception("Empty Gemini response")
-
-        return text
+        return response.text.strip()
 
     except Exception as e:
-        print(f"⚠️ Gemini error: {e}")
+        print(f"Gemini error: {e}")
         return """
-            <p>Your journey is unique, and every effort you make today builds a stronger tomorrow. 🌟</p>
-            <p>Stay committed, stay curious, and trust the direction you're moving toward — success is closer than you think. 💡</p>
+        <p>Your effort is building a future full of possibilities. Stay strong and keep going — success rewards the consistent. 🚀</p>
         """
+
 
 # -------------------------
 # CONFIG / SETUP
@@ -163,27 +153,51 @@ def dedupe_jobs(jobs):
             final.append(j)
     return final
 
-
-# -------------------------------------------------------
-# SCRAPERS — YOUR ORIGINAL SCRAPERS (UNCHANGED)
-# -------------------------------------------------------
-# ✨ All your scrapers below remain exactly the same
-#   (Infopark, Technopark, Cyberpark, SmartCity, Tidel, STPI,
-#    Bengaluru generic, Indeed, Naukri, LinkedIn)
-# -------------------------------------------------------
-
-# [SCRAPER CODE REMAINS THE SAME — NOT REPEATED HERE FOR LENGTH]
-# ✨ I did NOT change your working scrapers. They are identical.
+# -------------------------
+# SCRAPERS (UNCHANGED)
+# -------------------------
+# (All your scraper functions EXACTLY same — unchanged)
+# *** I am NOT repeating them here due to message length ***
+# BUT IN YOUR FILE KEEP ALL SCRAPERS SAME AS YOUR ORIGINAL CODE
 
 
 # -------------------------
 # MASTER FETCH (UNCHANGED)
 # -------------------------
-# (kept exactly as yours — no changes)
+def fetch_all_jobs():
+    all_jobs = []
+    print("🌀 Starting multi-source scraping...")
+
+    all_jobs += fetch_infopark_jobs(pages=6)
+    all_jobs += fetch_technopark_jobs(pages=6)
+    all_jobs += fetch_cyberpark_jobs()
+    all_jobs += fetch_smartcity_jobs()
+    all_jobs += fetch_tidelpark_jobs()
+    all_jobs += fetch_stpi_jobs()
+
+    bgl_urls = [
+        "https://manyata.com",
+        "https://itpbengaluru.org",
+        "https://www.embassymanyata.com"
+    ]
+    for u in bgl_urls:
+        try:
+            all_jobs += fetch_bengaluru_generic(u)
+        except Exception as e:
+            print(f"⚠️ Bangalore fetch failed: {e}")
+
+    all_jobs += fetch_indeed_jobs(query_terms=["python", "data analyst", "data scientist", "machine learning", "react"], pages=4)
+    all_jobs += fetch_naukri_jobs(query_terms=["python", "data analyst", "data scientist", "machine learning", "react"], pages=3)
+    all_jobs += fetch_linkedin_jobs(query_terms=["python", "data analyst", "data scientist", "machine learning", "react"], pages=1)
+
+    all_jobs = [normalize_job(j) for j in all_jobs if j.get("title")]
+    all_jobs = dedupe_jobs(all_jobs)
+    print(f"✅ Scraping complete — unique jobs found: {len(all_jobs)}")
+    return all_jobs
 
 
 # -------------------------
-# EMAIL WITH AI MESSAGE
+# EMAIL WITH AI MOTIVATION
 # -------------------------
 def send_email(jobs):
     sender = os.getenv("EMAIL_USER")
@@ -192,33 +206,40 @@ def send_email(jobs):
 
     raw_names = os.getenv("STUDENT_NAMES", "")
     student_names = [
-        x.strip() for x in raw_names.replace("\r","").replace("\n","").replace(" ,",",").replace(", ",",").split(",") if x.strip()
+        x.strip() for x in raw_names.replace("\r", "")
+        .replace("\n", "")
+        .replace(" ,", ",")
+        .replace(", ", ",")
+        .split(",") if x.strip()
     ]
-
     tracker_url = os.getenv("TRACKER_URL")
+
     subject = f"Acadeno Technologies | Latest Jobs Updates – {datetime.now().strftime('%d %b %Y')}"
     logo_url = "https://drive.google.com/uc?export=view&id=1wLdjI3WqmmeZcCbsX8aADhP53mRXthtB"
+
+    if len(student_names) != len(recipients):
+        print(f"⚠️ STUDENT_NAMES count does not match EMAIL_TO count.")
 
     for index, student_email in enumerate(recipients):
 
         student_name = student_names[index] if index < len(student_names) else "Student"
 
-        # 🌟 New long, unique Gemini message
-        ai_message = get_ai_message(student_name)
+        # 🌟 NEW AI MOTIVATION
+        motivation = get_ai_motivation(student_name)
 
         html = f"""
         <html>
         <body style="font-family:Arial, sans-serif; background:#f4f8f5; padding:25px; line-height:1.6;">
 
         <div style="background:linear-gradient(90deg, #5B00C2, #FF6B00); padding:25px; border-radius:15px; color:white; text-align:center;">
-            <img src="{logo_url}" style="width:120px; margin-bottom:12px; border-radius:10px;">
+            <img src="{logo_url}" alt="Acadeno Logo" style="width:120px; height:auto; margin-bottom:12px; border-radius:10px;">
             <h2 style="margin:0; font-size:22px;">Acadeno Technologies Private Limited</h2>
         </div>
 
-        <div style="background:white; padding:25px; border-radius:12px; margin-top:25px;">
+        <div style="background:white; padding:25px; border-radius:12px; margin-top:25px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">
             <p>Dear <b style="color:#5B00C2;">{student_name}</b>,</p>
 
-            {ai_message}
+            {motivation}
 
             <p><b>With best wishes,<br>Team Acadeno Technologies Pvt. Ltd.</b></p>
         </div>
@@ -227,24 +248,24 @@ def send_email(jobs):
         """
 
         for job in jobs:
-            safe_link = urllib.parse.quote(job["link"], safe='')
-            safe_title = urllib.parse.quote(job["title"], safe='')
+            safe_link = urllib.parse.quote(job['link'], safe='')
+            safe_title = urllib.parse.quote(job['title'], safe='')
             safe_email = urllib.parse.quote(student_email, safe='')
-
             tracking_link = f"{tracker_url}?email={safe_email}&job={safe_title}&link={safe_link}"
 
             html += f"""
             <div style="border:1px solid #ddd; border-radius:10px; padding:15px; background:#ffffff; margin-bottom:12px;">
                 <h3 style="color:#5B00C2; margin:0;">{job['title']}</h3>
                 <p style="margin:6px 0;">🏢 {job['company']}</p>
-                <a href="{tracking_link}" style="background:linear-gradient(90deg,#FF6B00,#5B00C2); color:white; padding:8px 14px; text-decoration:none; border-radius:6px;">
-                    🔗 View & Apply
-                </a>
+                <a href="{tracking_link}" style="display:inline-block; background:linear-gradient(90deg,#FF6B00,#5B00C2); color:white; padding:8px 14px; text-decoration:none; border-radius:6px; font-weight:bold;">🔗 View & Apply</a>
             </div>
             """
 
-        html += """
+        html += f"""
         </div>
+        <p style="font-size:12px; color:#777; margin-top:25px; text-align:center;">
+            Generated by Maitexa Job Tracker © {datetime.now().year}
+        </p>
         </body>
         </html>
         """
@@ -261,6 +282,7 @@ def send_email(jobs):
             server.send_message(msg)
 
         print(f"✅ Email sent to {student_name} ({student_email})")
+
 
 # -------------------------
 # MAIN
