@@ -58,7 +58,78 @@ INCLUDE_TERMS = [
     "nlp","llm","pandas","numpy","scikit-learn","tensorflow","pytorch","rest api","Data Analyst","Junior Data Analyst","Senior Data Analyst","Business Data Analyst",
 "Business Analyst","Reporting Analyst","Data Reporting Analyst","Operations Analyst","Product Analyst","Marketing Analyst","Financial Analyst","BI Analyst / Business Intelligence Analyst","Data Quality Analyst","Data Visualization Analyst",
 "Quantitative Analyst / Quant Analyst","Statistical Analyst","Data Science Analyst","Insights Analyst","Data Operations Analyst","Risk Analyst","Fraud Analyst","Workforce Analyst"
-"Revenue Analyst","Research Analyst","Analytics Specialist","Decision Support Analyst"
+"Revenue Analyst","Research Analyst","Analytics Specialist","Decision Support Analyst","flutter",
+    "dart",
+    "flutter developer",
+    "mobile developer",
+    "android developer",
+    "ios developer",
+    "cross platform developer",
+    "mobile app developer",
+
+    # Flutter frameworks / tools
+    "flutter bloc",
+    "bloc pattern",
+    "provider",
+    "riverpod",
+    "getx",
+    "flutter mobx",
+    "flutter cubit",
+    "flutter hooks",
+    "clean architecture flutter",
+
+    # Backend API integration (common in Flutter roles)
+    "rest api",
+    "graphql",
+    "firebase",
+    "supabase",
+    "appwrite",
+    "backend integration",
+
+    # Database keywords
+    "sqlite",
+    "hive",
+    "moor",
+    "isar",
+    "shared preferences",
+
+    # UI / UX keywords used in job posts
+    "ui design",
+    "ux",
+    "material design",
+    "responsive ui",
+    "widget development",
+    "state management",
+
+    # Extra skills often expected
+    "git",
+    "github",
+    "devops",
+    "ci cd",
+    "play store",
+    "app store",
+    "deployment",
+    "version control",
+
+    # Cloud integrations common in Flutter jobs
+    "aws",
+    "gcp",
+    "google cloud",
+    "azure",
+    "cloud functions",
+
+    # Testing
+    "unit testing",
+    "integration testing",
+    "flutter test",
+    "widget testing",
+
+    # Other frontend/mobile tech often listed in job descriptions
+    "react native",
+    "kotlin",
+    "swift",
+    "java android",
+    "objective c",
 
 ]
 
