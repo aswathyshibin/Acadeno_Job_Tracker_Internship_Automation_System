@@ -9,7 +9,7 @@ app = Flask(__name__)
 
 # Load GitHub credentials
 GITHUB_TOKEN = os.getenv("GITHUB_PAT")   # <-- FIXED
-REPO = os.getenv("GITHUB_REPO", "aswathyshibin/test_cred") 
+REPO = os.getenv("GITHUB_REPO", "acadenocareers/Joblisting") 
 EMAIL_SECRET = "EMAIL_TO"
 NAMES_SECRET = "STUDENT_NAMES"
 
